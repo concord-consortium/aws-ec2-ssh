@@ -1,4 +1,9 @@
-#!/bin/bash -e
+#!/bin/bash
+
+if [ `id -u 2>/dev/null` != 0 ]; then
+    echo "You must be root to run this script."
+    exit 1
+fi
 
 show_help() {
 cat << EOF
@@ -75,16 +80,18 @@ do
     esac
 done
 
-tmpdir=$(mktemp -d)
-
-cd "$tmpdir"
-
-git clone https://github.com/widdix/aws-ec2-ssh.git
-
-cd "$tmpdir/aws-ec2-ssh"
+#
+# Copy scripts to /opt
+#
+echo "Installing scripts... "
 
 cp authorized_keys_command.sh /opt/authorized_keys_command.sh
 cp import_users.sh /opt/import_users.sh
+
+#
+# Create config file
+#
+echo "Creating aws-ec2-ssh.conf file... "
 
 if [ "${IAM_GROUPS}" != "" ]
 then
@@ -116,8 +123,42 @@ then
     echo "USERADD_ARGS=\"${USERADD_ARGS}\"" >> /etc/aws-ec2-ssh.conf
 fi
 
+#
+# Update sshd config
+#
+echo "Updating sshd_config... "
+
 sed -i 's:#AuthorizedKeysCommand none:AuthorizedKeysCommand /opt/authorized_keys_command.sh:g' /etc/ssh/sshd_config
 sed -i 's:#AuthorizedKeysCommandUser nobody:AuthorizedKeysCommandUser nobody:g' /etc/ssh/sshd_config
+
+#
+# Handle cases where the commented out configs are not present
+#
+add_config() {
+    name=$1
+    value=$2
+
+    grep "^$1 $2" /etc/ssh/sshd_config >/dev/null 2>&1
+
+    if [ $? != 0 ]; then
+    echo "$1 $2" >> /etc/ssh/sshd_config
+    fi
+}
+
+add_config AuthorizedKeysCommand /opt/authorized_keys_command.sh
+add_config AuthorizedKeysCommandUser nobody
+
+#
+# Install AWS CLI
+#
+echo "Installing AWS CLI... "
+
+apt-get install -y awscli
+
+#
+# Add cron job
+#
+echo "Adding cron job... "
 
 cat > /etc/cron.d/import_users << EOF
 SHELL=/bin/bash
@@ -128,6 +169,17 @@ HOME=/
 EOF
 chmod 0644 /etc/cron.d/import_users
 
+#
+# Import users
+#
+echo "Importing users... "
+
 /opt/import_users.sh
 
+#
+# Restart sshd service
+#
+echo "Restarting sshd service... "
+
 service sshd restart
+

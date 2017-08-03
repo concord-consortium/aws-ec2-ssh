@@ -1,5 +1,11 @@
 #!/bin/bash -e
 
+#
+# The host "instance-data" does not resolve in some environments.
+# Use the IP address instead.
+#
+instance_data=169.254.169.254
+
 # source configuration if it exists
 [ -f /etc/aws-ec2-ssh.conf ] && . /etc/aws-ec2-ssh.conf
 
@@ -45,7 +51,7 @@ fi
 : ${USERADD_ARGS:="--create-home --shell /bin/bash"}
 
 # Initizalize INSTANCE variable
-INSTANCE_ID=$(curl -s http://instance-data//latest/meta-data/instance-id)
+INSTANCE_ID=$(curl -s http://${instance_data}//latest/meta-data/instance-id)
 
 function log() {
     /usr/bin/logger -i -p auth.info -t aws-ec2-ssh "$@"
