@@ -12,6 +12,7 @@ Install import_users.sh and authorized_key_commands.
 
     -h                 display this help and exit
     -v                 verbose mode.
+    -f                 Force installation without specifying groups.
 
     -a arn             Assume a role before contacting AWS IAM to get users and keys.
                        This can be used if you define your users in one AWS account, while the EC2
@@ -40,7 +41,9 @@ ASSUME_ROLE=""
 USERADD_PROGRAM=""
 USERADD_ARGS=""
 
-while getopts :hva:i:l:s: opt
+FORCE=0
+
+while getopts :hvfa:i:l:s: opt
 do
     case $opt in
         h)
@@ -58,6 +61,9 @@ do
             ;;
         v)
             set -x
+            ;;
+        f)
+            FORCE=1
             ;;
         a)
             ASSUME_ROLE="$OPTARG"
@@ -79,6 +85,18 @@ do
             exit 1
     esac
 done
+
+#
+# Check that groups are passed. Require forceful install
+# if no IAM or SUDO groups are specified.
+#
+if [ "${IAM_GROUPS}" == "" -o "${SUDO_GROUPS}" == "" ]; then
+    if [ $FORCE == 0 ]; then
+        echo "No IAM group(s) or SUDO group(s) specified."
+        echo "Use -f to force installation without specifying groups."
+        exit 1
+    fi
+fi
 
 #
 # Copy scripts to /opt
