@@ -210,10 +210,10 @@ if [ "$DISTRO" == "14" ]; then
     if [ -f "/usr/bin/aws" ]; then
         rm /usr/bin/aws
     fi
-    apt-get install -y python-pip
-    pip install awscli --upgrade --user
-    chmod 755 /home/ubuntu/.local
-    ln -s /home/ubuntu/.local/bin/aws /usr/bin/aws
+    sudo apt-get install -y curl unzip
+    curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+    unzip -o awscli-bundle.zip
+    ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws 
 fi
 
 #
