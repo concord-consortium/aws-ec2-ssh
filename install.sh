@@ -34,6 +34,24 @@ Install import_users.sh and authorized_key_commands.
 EOF
 }
 
+#
+# By default we install on Ubuntu 16
+#
+DISTRO=16
+grep DISTRIB_RELEASE=14 /etc/lsb-release
+if [ "$?" == 0 ]; then
+    DISTRO=14
+fi
+
+#
+# Set service name depending on distro.
+#
+SERVICE=sshd
+if [ "$DISTRO" == "14" ]; then
+    SERVICE=ssh
+fi
+
+
 IAM_GROUPS=""
 SUDO_GROUPS=""
 LOCAL_GROUPS=""
@@ -109,7 +127,10 @@ cp import_users.sh /opt/import_users.sh
 #
 # Create config file
 #
-echo "Creating aws-ec2-ssh.conf file... "
+echo "Creating new aws-ec2-ssh.conf file... "
+
+CONFIG_FILE=/etc/aws-ec2-ssh.conf
+rm $CONFIG_FILE
 
 if [ "${IAM_GROUPS}" != "" ]
 then
@@ -171,7 +192,29 @@ add_config AuthorizedKeysCommandUser nobody
 #
 echo "Installing AWS CLI... "
 
-apt-get install -y awscli
+#
+# For Ubuntu 16, the aws cli in the repo has all the features we need.
+#
+if [ "$DISTRO" == "16" ]; then
+    apt-get install -y awscli
+fi
+
+#
+# For Ubuntu 14 we need features not available in the aws cli from 
+# ubuntu the repo. Install from pip instead. 
+# This only installs locally to the user
+# so require the "ubuntu" user has ~/.local accessible and then
+# symlink to that. We require user "nobody" be able to run this command. 
+#
+if [ "$DISTRO" == "14" ]; then
+    if [ -f "/usr/bin/aws" ]; then
+        rm /usr/bin/aws
+    fi
+    apt-get install -y python-pip
+    pip install awscli --upgrade --user
+    chmod 755 /home/ubuntu/.local
+    ln -s /home/ubuntu/.local/bin/aws /usr/bin/aws
+fi
 
 #
 # Add cron job
@@ -199,5 +242,5 @@ echo "Importing users... "
 #
 echo "Restarting sshd service... "
 
-service sshd restart
+service $SERVICE restart
 
