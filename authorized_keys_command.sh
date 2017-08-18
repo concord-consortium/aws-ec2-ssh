@@ -16,7 +16,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-log Sourcing config
+log "Sourcing config"
 
 # source configuration if it exists
 [ -f /etc/aws-ec2-ssh.conf ] && . /etc/aws-ec2-ssh.conf
@@ -26,7 +26,7 @@ log Sourcing config
 # instance you use this script runs in another.
 : ${ASSUMEROLE:=""}
 
-log Checking ASSUMEROLE
+log "Checking ASSUMEROLE"
 
 if [[ ! -z "${ASSUMEROLE}" ]]
 then
@@ -43,7 +43,7 @@ then
   export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_SECURITY_TOKEN
 fi
 
-log Setting user
+log "Setting user"
 
 UnsaveUserName="$1"
 UnsaveUserName=${UnsaveUserName//".plus."/"+"}
@@ -51,14 +51,17 @@ UnsaveUserName=${UnsaveUserName//".equal."/"="}
 UnsaveUserName=${UnsaveUserName//".comma."/","}
 UnsaveUserName=${UnsaveUserName//".at."/"@"}
 
-log Getting keys
+log "Getting keys"
 
 KEYS=`aws iam list-ssh-public-keys --user-name "$UnsaveUserName" --query "SSHPublicKeys[?Status == 'Active'].[SSHPublicKeyId]" --output text `
 
 log "Processing keys $KEYS"
-echo $KEYS | while read -r KeyId; do
-  log "Processing key $KeyId"
-  aws iam get-ssh-public-key --user-name "$UnsaveUserName" --ssh-public-key-id "$KeyId" --encoding SSH --query "SSHPublicKey.SSHPublicKeyBody" --output text
-  RESULT=$?
-  log "Result $?"
+for KeyId in $KEYS; do
+    log "Processing key $KeyId"
+    aws iam get-ssh-public-key --user-name "$UnsaveUserName" --ssh-public-key-id "$KeyId" --encoding SSH --query "SSHPublicKey.SSHPublicKeyBody" --output text
+    RESULT=$?
+    log "Result $?"
 done
+
+log "Processed all keys."
+
