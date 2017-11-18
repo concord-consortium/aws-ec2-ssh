@@ -196,6 +196,7 @@ echo "Installing AWS CLI... "
 # For Ubuntu 16, the aws cli in the repo has all the features we need.
 #
 if [ "$DISTRO" == "16" ]; then
+    apt-get update
     apt-get install -y awscli
 fi
 
