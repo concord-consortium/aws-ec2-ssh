@@ -35,19 +35,22 @@ EOF
 }
 
 #
-# By default we install on Ubuntu 16
+# By default we don't assume a distro
 #
-DISTRO=16
-grep DISTRIB_RELEASE=14 /etc/lsb-release
-if [ "$?" == 0 ]; then
-    DISTRO=14
+DISTRO=unknown
+if [ -f "/etc/lsb-release"]; then
+    DISTRO=ubuntu16
+    grep DISTRIB_RELEASE=14 /etc/lsb-release
+    if [ "$?" == 0 ]; then
+        DISTRO=ubuntu14
+    fi
 fi
 
 #
 # Set service name depending on distro.
 #
 SERVICE=sshd
-if [ "$DISTRO" == "14" ]; then
+if [ "$DISTRO" == "ubuntu14" ]; then
     SERVICE=ssh
 fi
 
@@ -187,34 +190,44 @@ add_config() {
 add_config AuthorizedKeysCommand /opt/authorized_keys_command.sh
 add_config AuthorizedKeysCommandUser nobody
 
-#
-# Install AWS CLI
-#
-echo "Installing AWS CLI... "
-
-#
-# For Ubuntu 16, the aws cli in the repo has all the features we need.
-#
-if [ "$DISTRO" == "16" ]; then
-    apt-get update
-    apt-get install -y awscli
-fi
-
-#
-# For Ubuntu 14 we need features not available in the aws cli from 
-# ubuntu the repo. Install from pip instead. 
-# This only installs locally to the user
-# so require the "ubuntu" user has ~/.local accessible and then
-# symlink to that. We require user "nobody" be able to run this command. 
-#
-if [ "$DISTRO" == "14" ]; then
-    if [ -f "/usr/bin/aws" ]; then
-        rm /usr/bin/aws
+if [ "$DISTRO" == "unknown" ]; then
+    # don't install the aws cli
+    # check if AWS CLI exists
+    if ! which aws; then
+        echo "aws executable not found - exiting!"
+        exit 1
     fi
-    sudo apt-get install -y curl unzip
-    curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-    unzip -o awscli-bundle.zip
-    ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws 
+else
+    #
+    # Install AWS CLI
+    #
+    echo "Installing AWS CLI... "
+ 
+    #
+    # For Ubuntu 16, the aws cli in the repo has all the features we need.
+    #
+    if [ "$DISTRO" == "ubuntu16" ]; then
+        apt-get update
+        apt-get install -y awscli
+    fi
+
+    #
+    # For Ubuntu 14 we need features not available in the aws cli from 
+    # ubuntu the repo. Install from pip instead. 
+    # This only installs locally to the user
+    # so require the "ubuntu" user has ~/.local accessible and then
+    # symlink to that. We require user "nobody" be able to run this command. 
+    #
+    if [ "$DISTRO" == "ubuntu14" ]; then
+        if [ -f "/usr/bin/aws" ]; then
+            rm /usr/bin/aws
+        fi
+        sudo apt-get install -y curl unzip
+        curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+        unzip -o awscli-bundle.zip
+        ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws 
+    fi
+
 fi
 
 #
@@ -244,4 +257,3 @@ echo "Importing users... "
 echo "Restarting sshd service... "
 
 service $SERVICE restart
-
