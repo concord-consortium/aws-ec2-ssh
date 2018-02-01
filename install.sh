@@ -38,7 +38,7 @@ EOF
 # By default we don't assume a distro
 #
 DISTRO=unknown
-if [ -f "/etc/lsb-release"]; then
+if [ -f "/etc/lsb-release" ]; then
     DISTRO=ubuntu16
     grep DISTRIB_RELEASE=14 /etc/lsb-release
     if [ "$?" == 0 ]; then
